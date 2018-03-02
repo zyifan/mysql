@@ -530,7 +530,40 @@
 	SELECT product_cd, SUM(avail_balance) prod_balance FROM account WHERE status = 'ACTIVE' GROUP BY product_cd HAVING MIN(avail_balace) >= 1000 AND MAX(avail_balace) <= 10000;
 
 55、子查询（临时表，服务器在 sql 语句执行结束后将清空子查询结果所占的内存）
-	
+	where中常用运算符：=、<>、>、<、<=、>=、in、not in、or、and、all、any、is not null、is null
+
+	all需要和运算符配合使用，只有与集合中所有成员比较都成立时条件才为真：
+	SELECT emp_id, fname, lname, title FROM employee WHERE emp_id <> ALL (SELECT superior_emp_id FROM employee WHERE superior_emp_id IS NOT NULL);
+
+	any将一个值与值集中每个成员相比较，只要有一个比较成立，则条件为真（any 与 in 等效）:
+	SELECT account_id, cust_id, product_cd, avail_balance FROM account WHERE avail_balance > ANY (SELECT a.avail_balance FROM account a INNER JOIN individual i ON a.cust_id = i.cust_id WHERE i.fname = 'Frank' AND i.lanme = 'Trucker');
+
+	关联子查询：
+	SELECT c.cust_id, c.cust_type_cd, c.city FROM customer c WHERE 2 = (SELECT COUNT(*) FROM account a WHERE a.cust_id = c.cust_id);
+	SELECT c.cust_id, c.cust_type_cd, c.city FROM customer c WHERE (SELECT SUM(a.avail_balance) FROM account a WHERE a.cust_id = c.cust_id) BETWEEN 5000 AND 10000;
+
+	exists 和 not exists，只关心存在关系而不在乎数量:
+	SELECT a.account_id, a.product_cd, a.cust_id, a.avail_balance FROM account a WHERE EXISTS (SELECT 1 FROM transaction t WHERE t.account_id = a.account_id AND t.txn_date = '2008-09-22');
+	子查询可能回访0,1或者多行结果，然而条件只是简单地检查子查询能否返回至少一行。子查询可以返回任何自己喜欢的结果（不过，惯例是 select 1 或者 select *）：
+	SELECT a.account_id, a.product_cd, a.cust_id, a.avail_balance FROM account a WHERE EXISTS (SELECT t.txn_id, 'hello', 3.1414927 FROM transaction t WHERE t.account_id = a.account_id AND t.txn_date = '2008-09-22');
+
+	not exists:
+	SELECT a.account_id, a.product_c, a.cust_id FROM account a WHERE NOT EXISTS (SELECT 1 FROM business b WHERE b.cust_id = a.cust_id);
+
+	在update、delete、insert中使用关联子查询：
+	查找每隔账户的最新交易日期，再修改account表中的每一行的last_activity_date列的值：
+	UPDATE account a SET a.last_activity_date = (SELECT MAX(t.txn_date) FROM transaction t WHERE t.account_id = a.account_id);
+	在修改last_activity_date之前检查每个账户是否发生过交易，否则，如果子查询不返回任何行，last_activity_date列的值将被修改为null：
+	UPDATE account a SET a.last_activity_date = (SELECT MAX(t.txn_date) FROM transaction t WHERE t.account_id = a.account_id) WHERE EXISTS (SELECT 1 FROM transaction t WHERE t.account_id = a.account_id);//除select子句外，这两个关联子查询相同，不过，set子句的子查询仅当update语句中where子句为真时才执行，这样就可以保护last_activity_date列不被null重写
+
+	delete，在delete语句使用关联子查询时，无论如何都不能使用表别名：
+	DELETE FROM department WHERE NOT EXISTS (SELECT 1 FROM 	employee WHERE employee.dept_id = department.dept_id);
+
+
+
+
+
+
 	
 
 	
