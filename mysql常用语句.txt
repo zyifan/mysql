@@ -507,10 +507,31 @@
 	Sum（）返回集合中的所有值得和
 	Count（）返回集合中的值得个数
 
-	显式分组和隐式分组：
+	例：
+	SELECT COUNT(open_id) FROM account;
+	SELECT COUNT(DISTINCT open_id) FROM account;//使用distinct
+	SELECT MAX(pend_balance - avail_balance) max_uncleared FROM account;//使用表达式
+	SELECT EXTRACT(YEAR FROM start_date) year, COUNT(*) how_many FROM employee GROUP BY EXTRACT(YEAR FROM start_date);//利用表达式分组
 
+	demo:为每种产品/支行组合计算余额的同时，还需要为每种产品单独计算合计数
+	SELECT product_cd, open_branch_id, SUM(avail_balance) tot_balance FROM account GROUP BY product_cd, open_branch_id WITH ROLLUP;
+	//Oracle用法：SELECT product_cd, open_branch_id, SUM(avail_balance) tot_balance FROM account GROUP BY ROLLUP(product_cd, open_branch_id);
+	如果处理产品合计，还需要为每个支行计算合计，使用with cube选项，它可以为分组列所有可能的组合产生合计行。但MySql6.0版不支持with cube，SqlServer和Oracle数据库中可以使用：
+	SELECT product_cd, open_branch_id, SUM(avail_balance) tot_balance FROM account GROUP BY product_cd, open_branch_id WITH CUBE;
+	//Oracle用法：SELECT product_cd, open_branch_id, SUM(avail_balance) tot_balance FROM account GROUP BY CUBE(product_cd, open_branch_id);
 
-55、
+	分组过滤：当分组数据时，也可以在产生分组后对数据应用过滤条件，having子句就是放置这类过滤条件的地方
+	SELECT product_cd, SUM(avail_balance) prod_balance FROM account WHERE status = 'ACTIVE' GROUP BY product_cd HAVING SUM(avail_balace) >= 10000;//where子句过滤掉不活动的账户，having子句过滤掉余额合计小于$10000的产品
+
+	注意：当在包含 group by 子句的查询中增加过滤条件时，需要仔细考虑过滤是针对原始数据（此时过滤条件应放到 where 子句中），还是针对分组后的数据（此时过滤条件应放到 having 子句中）
+	where子句中不能包含聚合函数（如：SUM()）
+
+	此外，还可以在having子句中包含未在select语句中出现的聚合函数：
+	SELECT product_cd, SUM(avail_balance) prod_balance FROM account WHERE status = 'ACTIVE' GROUP BY product_cd HAVING MIN(avail_balace) >= 1000 AND MAX(avail_balace) <= 10000;
+
+55、子查询（临时表，服务器在 sql 语句执行结束后将清空子查询结果所占的内存）
+	
+	
 
 	
 
