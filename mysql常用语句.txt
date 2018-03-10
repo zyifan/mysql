@@ -269,13 +269,28 @@
 	关键字：join、inner join .. on .. 、inner join .. using (列名字)
 
 	如：
-	交叉连接：只使用join，即 最后结果共有 e.length * d.length 行：
+	交叉连接：只使用join/cross join，即 最后结果共有 e.length * d.length 行：
 	select e.fname,e.lname,d.name FROM employee e JOIN department d;
 
 	内连接：（两个连接的交集）join on：如果from子句中出现了多个表，那么要求同时包含各表之间的连接条件
 	select employee.emp_id,employee.fname,employee.lname, department.name dept_name from employee INNER JOIN department ON employee.dept_id = department.dept_id;
 	使用using代替on：
 	select employee.emp_id,employee.fname,employee.lname, department.name dept_name from employee INNER JOIN department USING (dept_id);
+
+	inner join交集
+	left outer join 左表格全部显示，右表格用null补缺
+	right outer join 右表格全部显示，左表格用null补缺
+
+	自外连接：
+	//将empolyee表连接到自己而生成雇员和他们主管的列表：
+	SELECT e.fname, e.lname, e_mgr.fname mgr_fname, e_mgr.lname mgr_lname FROM employee e INNER JOIN employee e_mgr ON e.superior_emp_id = e_mgr.emp_id;
+
+	//没有主管的雇员将会被遗漏，所以讲内连接改为外链接
+	SELECT e.fname, e.lname, e_mgr.fname mgr_fname, e_mgr.lname mgr_lname FROM employee e LEFT OUTER JOIN employee e_mgr ON e.superior_emp_id = e_mgr.emp_id;
+
+	natural join自然连接：
+	让数据库服务器去决定需要什么样的连接条件：
+	SELECT a.account_id, a.cust_id, c.cust_type_cd, c.fed_id FROM account a NATURAL JOIN custumer c;//但如果两个表没有相同名字的列，自然连接会变成交叉连接
 
 
 40、表别名
@@ -473,9 +488,13 @@
 	当前日期时间：
 	SELECT CURRENT_DATE(), CURRENT_TIME(), CURRENT_TIMESTAMP(); //Oracle没有current_time，sqlServer只有current_timestamp函数
 
-	date_add()函数，为指定日期增加任意一段时间间隔(如天、月、年)，并产生另一个日期：
+	MySQL计算日期的函数 DATE_ADD (d,INTERVAL expr type)函数，为指定日期增加任意一段时间间隔(如天、月、年)，并产生另一个日期：
+
 	SELECT DATE_ADD(CURRENT_DATE(), INTERVAL 5 DATY); //第二个参数包含3个元素，interval关键字，所需增加时间间隔、时间间隔类型
 	//常用的时间间隔类型 Second（秒数）、Minute（分钟数）、Hour（小时数）、Day（天数）、Month（月份）、Year（年份）、Minute_second（分钟数和秒数，中间用‘：’隔开）、Hour_second（小时数、分钟数和秒数，中间用‘：’隔开）、Year_month（年份和月份，中间用‘：’隔开）
+
+	interval()函数,进行比较列表(N，N1，N2，N3等等)中的N值。该函数如果N<N1返回0，如果N<N2返回1，如果N<N3返回2 等等。如果N为NULL，它将返回-1。列表值必须是N1<N2<N3的形式才能正常工作：
+	SELECT INTERVAL(6,1,2,3,4,5,6,7,8,9,1); // 6 -- 返回比N=6大的位置索引
 
 	last_day()获取当月的最后一天
 
@@ -491,7 +510,8 @@
 
 	获取两个日期将的天数datediff()：SELECT DATEDIFF('2009-09-03', '2009-06-24');
 
-	cast()函数其它用法：将字符串转换为整数: SELECT CAST('123' AS SIGNED INTERGER);
+	cast()函数其它用法：将字符串转换为整数: SELECT CAST('123' AS SIGNED INTERGER);	 
+
 
 54、分组与聚集
 	SELECT open_emp_id FROM acount;
@@ -558,6 +578,157 @@
 
 	delete，在delete语句使用关联子查询时，无论如何都不能使用表别名：
 	DELETE FROM department WHERE NOT EXISTS (SELECT 1 FROM 	employee WHERE employee.dept_id = department.dept_id);
+
+	子查询作为数据源：
+	SELECT d.dept_id, d.name, e_cnt.how_many num_employees FROM department d INNER JOIN (SELECT dept_id, COUNT(*) how_many FROM employee GROUPED BY dept_id) e_cnt ON d.dept_id = e_cnt.dept_id; //子查询被命名为 e_cnt， 并且用dept_id列e_cnt与department表连接，然后包含查询从department表检索出部门ID、名称以及来自e_cnt子查询的雇员数
+
+	使用子查询创建虚拟表：
+	SELECT 'Small Fry' name, 0 low_limit, 4999.99 high_limit 
+	UNION ALL
+	SELECT 'Average Joes' name, 5000 low_limit, 9999.99 high_limit 
+	UNION ALL
+	SELECT 'Heavy Hitters' name, 10000 low_limit, 9999999.99 high_limit;
+
+56、case查找型表达式：
+	SELECT c.cust_id, c.fed_id,
+		CASE 
+		  WHEN c.cust_type_cd = 'I' 
+		    THEN ( SELECT CONCAT( i.fname, ' ', i.lanme ) FROM individual i WHERE i.cust_id = c.cust_id )
+		  WHEN c.cust_type_cd = 'B' 
+		  	THEN ( SELECT b.fname FROM business b WHERE b.cust_id = c.cust_id )
+		  ELSE 'Unknown'
+		END name
+	FROM customer c;
+
+	简单的case表达式：
+	//简单case表达式没有查找性case表达式强大，因为简单 case表达式自动构建了等式条件，不是读者自己指定的条件
+	CASE customer.cust_type_cd
+	  WHEN 'I' THEN
+	    (SELECT CONCAT(i.fname, ' ', i.lname) FROM individual I WHERE i.cust_id = customer.cust_id)
+	  WHEN 'B' THEN
+	  	(SELECT b.fname FROM business b WHERE b.cust_id = customer.cust_id)
+	  ELSE 'Unknown Customer Type'
+	END
+
+	选择性聚合：
+	SELECT CONCAT('ALERT! : aCCOUNT #', a.account_id, ' Has Incorrect Balance!)
+	FORM account a
+	WHERE (a.avail_balance, a.pending_balance) <>
+	(SELECT
+	   SUM(CASE
+	         WHEN t.funds_avail_date > CURRENT_TIMESTAMP()
+	           THEN 0
+	         WHEN t.txn_type_cd = 'DBT'
+	           THEN t.amount * -1
+	         ELSE t.amount
+	        END),
+	   SUM(CASE
+	         WHEN t.txn_type_cd = 'DBT'
+	           THEN t.amount * -1
+	         ELSE t.amount
+	       END)
+	FROM transaction t
+	WHERE t.account_id = a.account_id);
+
+	存在性检查：
+	//查询某个客户是否有支票账户或储蓄账户，并不关心每隔类型的账户是否多余一个
+	SELECT c.cust_id, c.fed_id, c.cust_type_cd,
+	 CASE 
+	   WHEN EXISTS (SELECT 1 FROM account a WHERE a.cust_id = c.cust_id AND a.product_cd = 'CHK')
+	    THEN 'Y'
+	   ELSE 'N' 
+	 END has_checking,
+	 CASE 	
+	   WHEN EXISTS (SELECT 1 FROM account a WHERE a.cust_id = c.cust_id AND a.product_cd = 'SAV')
+	    THEN 'Y'
+	   ELSE 'N' 
+	 END has_savings
+	FROM customer c;
+
+	//使用简单的case表达试为每个客户计算账户数目
+	SELECT c.cust_id, c.fed_id, c.cust_type_cd,
+	 CASE (SELECT COUNT(*) FROM account a WHERE a.cust_id = c.cust_id)
+	   WHEN 0 THEN 'None'
+	   WHEN 1 THEN '1'
+	   WHEN 2 THEN '2'
+	   ELSE '3+'
+	 END num_accounts
+	FROM customer c;
+
+	//除0错误
+	SELECT 100/0; 在MySql中会将结果置为 Null
+	//为了保证计算不遇到错误或者其它更糟糕的情况，也不会被莫名其妙置为 null 值，需要将分母包装到条件逻辑里
+	SELECT a.cust_id, a.product_cd, a.avail_balance / 
+	  CASE 
+	    WHEN prod_tots.tot_balance = 0 
+	     THEN 1
+	    ELSE prod_tots.tot_balance
+	  END percent_of_total
+	FROM account a 
+	INNER JOIN
+	 (SELECT a.product_cd, SUM(a.avail_balance) tot_balance FROM account a GROUP BY a.product_cd) prod_tots
+	ON a.product_cd = prod_tots.product_cd;
+
+57、锁
+	锁是数据库服务器用来控制数据资源被并行使用的一种机制。当数据库的一些内容被锁定时，任何打算修改（或者可能是读取）这个数据的用户必须等到锁被释放。大部分数据库使用下面两种锁策略之一：
+		1）数据库的写操作必须向服务器申请并获得写锁才能修改数据，而读操作必须申请和获得读锁才能查询数据。多用户可以同时读取数据，而一个表（获取其它部分）一次只能分配一个写锁，并且拒绝读请求直至写锁释放。(SqlServer, Mysql)
+		2）数据库的写操作必须向服务器申请并获得写锁才能修改数据，而读操作不需要任何类型的锁就可以查询数据。另一方面服务器要保证从查询开始到结束读操作看到一个一致的数据视图（即使其它用户修改，数据看上去也要相同）。这个方法称为版本控制(Oracle, Mysql)
+
+	锁粒度：
+	表锁：阻止多用户同时修改同一个表的数据（SqlServer、MySql）
+	页锁：阻止多用户同时修改某表中同一页（一页通常是一段 2-16KB 的内存空间）的数据（SqlServer、MySql、Oracle）
+	行锁：阻止多用户同时修改某表中同一行数据（SqlServer、MySql）
+
+	MySql使用哪种锁和锁粒度取决于存取引擎的选择
+
+58、 事务
+	将多条 SQL 语句聚集到一起，并且能够实现要么所有语句都执行，要么一个都不执行（这个属性称为原子性）
+	如启动一个事务，尝试从储蓄账户中移走￥500 并添加到支票账户，如果一切顺利，事务将被提交，如果出现了错误，事务将被回滚，这意味着将撤销自事务开始的所有数据变化
+	通使用事务，程序可以确保5￥00要么在储蓄账户，要么转移到支票账户，而不可能出什么意外。不管事务提交了还是回滚了，执行时获得的资源（比如写锁）在事务完成后都会被释放
+	当然，如果程序设法完成了两个update语句后，还没执行commit或rollback命令，服务器突然宕机了，那么事务会在服务器重新上线后被回滚（数据库服务器上线前必须完成的任务之一就是查找宕机前正在运行但未完成的事务，并将其回滚）。此外，如果程序完成了事务，并发出了commit命令，还没有将变化持久化到存储区（也就是说，修改数据还位于内存，但没有被刷新到新磁盘），服务器就宕机了，那么服务器重启时数据库服务器必须重新应用事务变换（这种属性称为持久性）。
+
+	结束事务：
+	除了提交 commit 或 rollback 指令，介绍事务还可以由其它情景出发，要么作为活动的间接结果，要么作为意外的结果：
+		1）服务器宕机，在这种情况下，服务器重启时事务将会被自动回滚
+		2）提交一个SQL模式的语句，比如 alter table，这将会引起当前事务提交和一个新事务启动
+		3）提交另一个start transaction命令，将会引起前一个事务提交
+		4）因为服务器检测到一个死锁并且确定当前事务就是罪魁祸首，那么服务器就会提前结束当前的事务，这种情况下，事务将会被回滚，同时释放错误消息(MySql会返回error #1213)
+
+	事务保存点：
+	 在某些情况下，可能会遇到一些问题需要回滚事务，但是并不想撤销所有做过的工作。此时，可以在事务内创建一个或多个保存点，这样就可以利用它们回滚到事务的特定位置而不必一路回滚到事务启动状态
+
+	 选择存储引擎：
+	 	当使用Oracle、SqlServer时，数据库都有单独的一套代码负责低级别数据库操作，比如用主键值从表中检索一个特定行。不过。Mysql数据库服务器被设计成可以用多个存储引擎提供低级别的数据库功能，比如资源锁定和事务管理。6.0版本的MySql包括以下存储引擎：
+
+	 	MyISAM：一种采用表级索定的非事务引擎
+	 	MEMORY：一种内存表使用的非事务引擎
+	 	BDB：一种采用页级索定的事务引擎
+	 	InnoDB：一种采用行级索定的事务引擎
+	 	Maria：6.0.6版本中MyISAM替代品，它添加了充分恢复功能
+	 	FaIcon：6.0.4版本引入的采用行级索定的高性能事务引擎
+	 	Archive：一种用于存储大量未索引数据的专用引擎，主要用来存档
+
+	查看表的引擎：SHOW TABLE STATUS LIKE 'transaction' \G;
+	为表指定引擎：ALTER TABLE transaction ENGINE = INNODB;
+	创建一个保存点：SAVEPOINT my_savepoint;
+	回滚到一个特定保存点：ROLLBACK TO SAVEPOINT my_savepoint;
+	如：
+		START TRANSACTION;
+
+		UPDATE product SET date_retired = CURRENT_TIMESTAMP() WHERE product_cd = 'xyz';
+
+		SAVEPOINT before_close_accounts;
+
+		SET status = 'CLOSED', close_date = CURRENT_TIMESTAMP(), last_activity_date = CURRENT_TIMESTAMP() WHERE product_cd = 'xyz';
+
+		ROLLBACK TO SAVEPOINT before_close_accounts;
+
+		COMMIT;
+
+59、索引和约束
+	
+
+
 
 
 
