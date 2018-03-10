@@ -726,7 +726,20 @@
 		COMMIT;
 
 59、索引和约束
-	
+	创建索引：ALTER TABLE department ADD INDEX dept_name_idx (name);
+	查看索引：SHOW INDEX FROM department \G;
+	删除索引：ALTER TABLE department DROP INDEX dept_name_idx;
+
+	唯一索引：
+	除了提供常规索引的所有好处，还作为一种机制限制索引列出现重复值，无论是插入一行还是修改索引列，数据库服务器都会检查唯一索引可以判断该值是否已经存在于本表的某一行
+	ALTER TABLE department ADD UNIQUE dept_name_idx (name);
+
+	多列索引：
+	创建跨越多列的索引
+	ALTER TABLE employee ADD INDEX emp_names_idx (lname, fname);
+
+	文本索引：
+	如果数据库中存储问答，那么可能需要允许用户在文档中查找单词或者短语，我们当然不希望每次请求搜索是服务器都打开每个文档，然后扫描需要的文本，但是传统的索引策略又不适用于这种情况，所以使用全文索引，MySql 中仅 MyISAM 存储引擎中可以使用全文索引
 
 
 
