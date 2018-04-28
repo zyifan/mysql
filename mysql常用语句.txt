@@ -684,6 +684,36 @@
 	 (SELECT a.product_cd, SUM(a.avail_balance) tot_balance FROM account a GROUP BY a.product_cd) prod_tots
 	ON a.product_cd = prod_tots.product_cd;
 
+	case用法示例（1）：
+	select d.id,d.report_reason,
+    case  
+       when d.type = 1 then
+         a.article_title  
+       when d.type = 2 then
+         b.ques_title 
+			 when d.type = 3 then
+			   c.answer 
+    end title
+	from  fs_article_report d  
+	left join  fs_article  a
+	on  a.id=d.article_id 
+	left join  fs_question b
+	on   b.id=d.article_id 
+	left join  fs_answer c
+	on  c.id=d.article_id
+
+	case用法示例（2）：
+	select d.*,
+	case 
+	when d.type=1 then 
+	(select a.article_title  from fs_article a where  a.id = d.article_id)
+	when d.type=2 then 
+	(select b.ques_title from fs_question b where b.id = d.article_id)	
+	when d.type=3 then 
+	(select c.answer from fs_answer c where c.id = d.article_id)
+	end txt
+	from  fs_article_report d 
+
 57、锁
 	锁是数据库服务器用来控制数据资源被并行使用的一种机制。当数据库的一些内容被锁定时，任何打算修改（或者可能是读取）这个数据的用户必须等到锁被释放。大部分数据库使用下面两种锁策略之一：
 		1）数据库的写操作必须向服务器申请并获得写锁才能修改数据，而读操作必须申请和获得读锁才能查询数据。多用户可以同时读取数据，而一个表（获取其它部分）一次只能分配一个写锁，并且拒绝读请求直至写锁释放。(SqlServer, Mysql)
